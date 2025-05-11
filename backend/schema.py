@@ -1,13 +1,15 @@
 import strawberry
 from sqlalchemy.future import select
 from db import AsyncSessionLocal
-from models import Product as ProductModel
+from models import Product as ProductModel, ProductStatus
 
 @strawberry.type
 class Product:
     id: int
     name: str
     price: float
+    status: str  # ✅ 回傳 ACTIVE / INACTIVE
+
 
 @strawberry.type
 class Query:
@@ -16,23 +18,44 @@ class Query:
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(ProductModel))
             return [
-                Product(id=p.id, name=p.name, price=p.price)
+                Product(
+                    id=p.id, 
+                    name=p.name, 
+                    price=p.price,
+                    status=ProductStatus(p.status).name  # ✅ 數值轉字串
+                    )
                 for p in result.scalars()
             ]
 
 @strawberry.type
 class Mutation:
     @strawberry.mutation
-    async def add_product(self, name: str, price: float) -> Product:
+    async def add_product(
+        self, 
+        name: str, 
+        price: float, 
+        status: int = ProductStatus.ACTIVE.value  # ✅ 預設 ACTIVE
+    ) -> Product:
         async with AsyncSessionLocal() as session:
-            new_product = ProductModel(name=name, price=price)
+            new_product = ProductModel(name=name, price=price, status=status)
             session.add(new_product)
             await session.commit()
             await session.refresh(new_product)
-            return Product(id=new_product.id, name=new_product.name, price=new_product.price)
+            return Product(
+                id=new_product.id, 
+                name=new_product.name, 
+                price=new_product.price, 
+                status=ProductStatus(new_product.status).name
+            )
 
     @strawberry.mutation
-    async def update_product(self, id: int, name: str | None = None, price: float | None = None) -> Product | None:
+    async def update_product(
+            self, 
+            id: int, 
+            name: str | None = None, 
+            price: float | None = None,
+            status: int | None = None
+        ) -> Product | None:
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(ProductModel).where(ProductModel.id == id))
             product = result.scalars().first()
@@ -42,8 +65,15 @@ class Mutation:
                 product.name = name
             if price:
                 product.price = price
+            if status is not None:
+                product.status = status
             await session.commit()
-            return Product(id=product.id, name=product.name, price=product.price)
+            return Product(
+                    id=product.id, 
+                    name=product.name, 
+                    price=product.price,
+                    status=ProductStatus(product.status).name
+                )
 
     @strawberry.mutation
     async def delete_product(self, id: int) -> Product | None:
@@ -54,6 +84,11 @@ class Mutation:
                 return None
             await session.delete(product)
             await session.commit()
-            return Product(id=product.id, name=product.name, price=product.price)
+            return Product(
+                id=product.id, 
+                name=product.name, 
+                price=product.price,
+                status=ProductStatus(product.status).name
+            )
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
