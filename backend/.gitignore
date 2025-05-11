@@ -1,0 +1,52 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# IDE / Editor Settings
+.vscode/
+.idea/
+*.swp
+
+# MacOS files
+.DS_Store
+
+# Database files
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# Test outputs
+htmlcov/
+.tox/
+coverage/
+nosetests.xml
+pytest.xml
+coverage.xml
+
+# Python dependency files
+pip-log.txt
+
+# Ignore migrations if using alembic (optional)
+migrations/
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore Secrets (optional)
+.env
+.env.*
+
+# Backup files
+*~
+
+# VSCode Workspace
+*.code-workspace
