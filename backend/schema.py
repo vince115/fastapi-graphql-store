@@ -1,60 +1,95 @@
+# schema.py
 import strawberry
 from sqlalchemy.future import select
 from db import AsyncSessionLocal
-from models import Product as ProductModel, ProductStatus
+from models import Product as ProductModel
 
 @strawberry.type
 class Product:
     id: int
     name: str
+    category: str
     price: float
-    status: str  # ✅ 回傳 ACTIVE / INACTIVE
+    stock: int
+    imageUrl: str
+    active: bool # boolean 型別
+
+@strawberry.type
+class MutationResponse:
+    success: bool
+    message: str
+    product: Product | None = None
+
+def to_product(p: ProductModel) -> Product:
+    return Product(
+        id=p.id,
+        name=p.name,
+        category=p.category,
+        price=p.price,
+        stock=p.stock,
+        imageUrl=p.imageUrl,
+        active=bool(p.active)
+    )
 
 
+#查詢
 @strawberry.type
 class Query:
     @strawberry.field
     async def products(self) -> list[Product]:
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(ProductModel))
-            return [
-                Product(
-                    id=p.id, 
-                    name=p.name, 
-                    price=p.price,
-                    status=ProductStatus(p.status).name  # ✅ 數值轉字串
-                    )
-                for p in result.scalars()
-            ]
+            return [to_product(p) for p in result.scalars()]
+    # 根據 id 查詢單一商品
+    @strawberry.field
+    async def get_product(self, id: int) -> Product | None:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(select(ProductModel).where(ProductModel.id == id))
+            product = result.scalars().first()
+            if not product:
+                return None
+            return to_product(product)
 
 @strawberry.type
 class Mutation:
+    
+
+    #新增
     @strawberry.mutation
-    async def add_product(
+    async def addProduct(
         self, 
         name: str, 
+        category: str, 
         price: float, 
-        status: int = ProductStatus.ACTIVE.value  # ✅ 預設 ACTIVE
+        stock: int,
+        imageUrl: str,
+        active: bool = True  # 改為 boolean
     ) -> Product:
         async with AsyncSessionLocal() as session:
-            new_product = ProductModel(name=name, price=price, status=status)
+            new_product = ProductModel(
+                name=name,
+                category=category, 
+                price=price,
+                stock=stock,
+                imageUrl=imageUrl, 
+                active=active
+            )
             session.add(new_product)
             await session.commit()
             await session.refresh(new_product)
-            return Product(
-                id=new_product.id, 
-                name=new_product.name, 
-                price=new_product.price, 
-                status=ProductStatus(new_product.status).name
-            )
-
+            return to_product(new_product)
+    
+    #修改
     @strawberry.mutation
-    async def update_product(
+    async def updateProduct(
             self, 
             id: int, 
             name: str | None = None, 
+            category: str | None = None, 
             price: float | None = None,
-            status: int | None = None
+            stock:int | None = None,
+            imageUrl: str | None = None, 
+            active: bool | None = None
         ) -> Product | None:
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(ProductModel).where(ProductModel.id == id))
@@ -63,32 +98,30 @@ class Mutation:
                 return None
             if name:
                 product.name = name
+            if category:
+                product.category = category    
             if price:
                 product.price = price
-            if status is not None:
-                product.status = status
+            if stock:
+                product.stock = stock
+            if imageUrl:
+                product.imageUrl = imageUrl     
+            if active is not None:
+                product.active = active
             await session.commit()
-            return Product(
-                    id=product.id, 
-                    name=product.name, 
-                    price=product.price,
-                    status=ProductStatus(product.status).name
-                )
-
+            return to_product(product)
+        
+    #刪除
     @strawberry.mutation
-    async def delete_product(self, id: int) -> Product | None:
+    async def deleteProduct(self, id: int) ->  MutationResponse:
         async with AsyncSessionLocal() as session:
             result = await session.execute(select(ProductModel).where(ProductModel.id == id))
             product = result.scalars().first()
             if not product:
-                return None
+                return MutationResponse(success=False, message="找不到此商品", product=None)
+    
             await session.delete(product)
             await session.commit()
-            return Product(
-                id=product.id, 
-                name=product.name, 
-                price=product.price,
-                status=ProductStatus(product.status).name
-            )
+            return MutationResponse(success=True, message="商品已刪除", product=to_product(product))
 
 schema = strawberry.Schema(query=Query, mutation=Mutation)
