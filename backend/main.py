@@ -1,3 +1,7 @@
+# main.py
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
 from schema import schema
@@ -10,7 +14,7 @@ app = FastAPI()
 # ✅ CORS 設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # ⬅️ 允許前端來源
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"],  # ⬅️ 允許前端來源
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

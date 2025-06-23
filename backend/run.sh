@@ -1,3 +1,4 @@
+# run.sh
 #!/usr/bin/env bash
 
 # 設定預設 Port，如果有帶參數就用參數
@@ -18,6 +19,10 @@ fi
 if [ -d "venv" ]; then
     echo "📦 啟用虛擬環境..."
     source venv/bin/activate
+
+    # 加入當前 backend 目錄到 PYTHONPATH
+    export PYTHONPATH=$(pwd)
+   
 else
     echo "❌ 找不到虛擬環境 venv，請先建立 virtualenv。"
     exit 1
@@ -25,4 +30,6 @@ fi
 
 # 啟動 FastAPI
 echo "🚀 啟動 uvicorn 服務..."
-uvicorn main:app --reload --port $PORT
+# uvicorn main:app --reload --port $PORT
+# uvicorn backend.main:app --reload --port $PORT
+ PYTHONPATH=$(pwd) uvicorn main:app --reload --port $PORT
